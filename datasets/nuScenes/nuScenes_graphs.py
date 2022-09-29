@@ -34,12 +34,13 @@ class NuScenesGraphs(NuScenesVector):
         Function to compute statistics for a given data point
         """
         num_lane_nodes, max_nbr_nodes = self.get_map_representation(idx)
-        num_vehicles, num_pedestrians = self.get_surrounding_agent_representation(idx)
+        num_vehicles, num_pedestrians, num_objects = self.get_surrounding_agent_representation(idx)
         stats = {
             'num_lane_nodes': num_lane_nodes,
             'max_nbr_nodes': max_nbr_nodes,
             'num_vehicles': num_vehicles,
-            'num_pedestrians': num_pedestrians
+            'num_pedestrians': num_pedestrians,
+            'num_objects': num_objects
         }
 
         return stats

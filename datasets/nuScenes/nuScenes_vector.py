@@ -47,6 +47,7 @@ class NuScenesVector(NuScenesTrajectories):
             self.max_nodes = stats['num_lane_nodes']
             self.max_vehicles = stats['num_vehicles']
             self.max_pedestrians = stats['num_pedestrians']
+            self.max_objects = stats['num_objects']
 
         # Whether to add random flips for data augmentation
         elif self.mode == 'load_data':
@@ -57,11 +58,12 @@ class NuScenesVector(NuScenesTrajectories):
         Function to compute statistics for a given data point
         """
         num_lane_nodes = self.get_map_representation(idx)
-        num_vehicles, num_pedestrians = self.get_surrounding_agent_representation(idx)
+        num_vehicles, num_pedestrians, num_objects = self.get_surrounding_agent_representation(idx)
         stats = {
             'num_lane_nodes': num_lane_nodes,
             'num_vehicles': num_vehicles,
-            'num_pedestrians': num_pedestrians
+            'num_pedestrians': num_pedestrians,
+            'num_objects': num_objects
         }
 
         return stats
@@ -216,24 +218,27 @@ class NuScenesVector(NuScenesTrajectories):
         vehicles  = self.get_agents_of_type(idx, 'vehicle')
         # paths_ids_v, paths_vectors_v = self.split_lanes(paths_vectors_v, self.polyline_length, paths_ids_v)
         pedestrians = self.get_agents_of_type(idx, 'human')
+        objects = self.get_agents_of_type(idx, 'object')
 
         # Discard poses outside map extent
         vehicles = self.discard_poses_outside_extent(vehicles)
         # paths_vectors_v = self.discard_poses_outside_extent(paths_vectors_v)
         pedestrians = self.discard_poses_outside_extent(pedestrians)
+        objects = self.discard_poses_outside_extent(objects)
 
         # While running the dataset class in 'compute_stats' mode:
         if self.mode == 'compute_stats':
-            return len(vehicles), len(pedestrians)
+            return len(vehicles), len(pedestrians), len(objects)
 
         # Convert to fixed size arrays for batching
         vehicles, vehicle_masks = self.list_to_tensor(vehicles, self.max_vehicles, self.t_h * 2 + 1, 5)
         pedestrians, pedestrian_masks = self.list_to_tensor(pedestrians, self.max_pedestrians, self.t_h * 2 + 1, 5) 
+        objects, object_masks = self.list_to_tensor(objects, self.max_objects, self.t_h * 2 + 1, 5)
         # max_length = max([len(array) for array in paths_vectors_v])
         # paths_vectors_v, paths_vectors_v_masks = self.list_to_tensor(paths_vectors_v, self.max_vehicles, max_length , 17)
 
         # Get adjacency matrix
-        adj_matrix, len_adj = self.get_adj_matrix(vehicles,vehicle_masks.any(-1),pedestrians,pedestrian_masks.any(-1))
+        adj_matrix, len_adj = self.get_adj_matrix(vehicles,vehicle_masks.any(-1),pedestrians,pedestrian_masks.any(-1), objects, object_masks.any(-1))
         """ src, dst = np.nonzero(adj_matrix)
         if len(src) == 0 or len(dst) == 0:
             src, dst = np.array([0]), np.array([0]) """
@@ -243,25 +248,32 @@ class NuScenesVector(NuScenesTrajectories):
             'vehicle_masks': vehicle_masks,
             'pedestrians': pedestrians,
             'pedestrian_masks': pedestrian_masks,
+            'objects': objects,
+            'object_masks': object_masks,
             'adj_matrix': adj_matrix,  
             'len_adj': len_adj,   
         }
 
         return surrounding_agent_representation
 
-    def get_adj_matrix(self, vehicles, veh_masks, pedestrians, ped_masks):
+    def get_adj_matrix(self, vehicles, veh_masks, pedestrians, ped_masks, objects, obj_masks):
         """
         Get adjacency matrix for the interaction graph
         :param vehicles: ndarray with vehicle track histories, shape [max_vehicles, t_h * 2, 5]
         :param pedestrians: ndarray with pedestrian track histories, shape [max_pedestrians, t_h * 2, 5]
+        :param objects: ndarray with object track histories, shape [max_objects, t_h * 2, 5]
         :return: adjacency matrix 
         """
         # Remove empty rows 
         veh_masks = ~veh_masks[np.any(~veh_masks,-1)] 
         ped_masks = ~ped_masks[np.any(~ped_masks,-1)] 
+        obj_masks = ~obj_masks[np.any(~obj_masks,-1)]
         index_veh = np.array( [ np.where(mask_i)[0][-1] if len(np.where(mask_i)[0])!=0 else -1 for mask_i in veh_masks])
         index_ped = np.array( [ np.where(mask_i)[0][-1] if len(np.where(mask_i)[0])!=0 else -1 for mask_i in ped_masks])
+        index_obj = np.array( [ np.where(mask_i)[0][-1] if len(np.where(mask_i)[0])!=0 else -1 for mask_i in obj_masks])
+        # Adding focal agent to the graph
         agents_last_positions = np.array([[0,0]])
+        
         if len(veh_masks) > 0:
             vehicles_masked = vehicles[np.arange(veh_masks.shape[0]), index_veh,:2]
             agents_last_positions = np.concatenate((agents_last_positions,vehicles_masked),axis=0)
@@ -272,6 +284,11 @@ class NuScenesVector(NuScenesTrajectories):
             agents_last_positions = np.concatenate((agents_last_positions,ped_masked),axis=0)
         else:
             ped_masked = np.array(([[]])) 
+        if len(obj_masks) > 0:
+            obj_masked = objects[np.arange(obj_masks.shape[0]), index_obj,:2]
+            agents_last_positions = np.concatenate((agents_last_positions,obj_masked),axis=0)
+        else:
+            obj_masked = np.array(([[]]))
 
         # Compute distance between any pair of objects
         dist_matrix = spatial.distance.cdist(agents_last_positions, agents_last_positions) 
@@ -283,7 +300,7 @@ class NuScenesVector(NuScenesTrajectories):
 
         # Convert to fixed size for batching 
         len_adj = len(adj_matrix)
-        adj_array = np.zeros((self.max_vehicles+self.max_pedestrians+1, self.max_vehicles+self.max_pedestrians+1))
+        adj_array = np.zeros((self.max_vehicles+self.max_pedestrians+self.max_objects+1, self.max_vehicles+self.max_pedestrians+self.max_objects+1))
         adj_array[:len_adj, :len_adj] = adj_matrix
 
         return adj_array, len_adj
