@@ -8,6 +8,8 @@ import time
 import math
 import os
 import train_eval.utils as u
+import wandb
+from wandb import AlertLevel
 
 
 # Initialize device:
@@ -38,7 +40,7 @@ class Trainer:
 
         # Initialize dataloaders
         if 'scout' in cfg['encoder_type']:
-            collate_fn = u.collate_fn_dgl_hetero
+            collate_fn = u.Collate_heterograph(cfg['encoder_args'])
         else:
             collate_fn = None
         self.tr_dl = torch_data.DataLoader(datasets['train'], cfg['batch_size'], shuffle=True,
@@ -137,9 +139,14 @@ class Trainer:
             # save best checkpoint when applicable
             if self.val_metric < self.min_val_metric:
                 self.min_val_metric = self.val_metric
-                self.save_checkpoint(os.path.join(output_dir, 'checkpoints', 'best.tar'))
+                self.save_checkpoint(os.path.join(output_dir, 'checkpoints', str(self.current_epoch) + '_best.tar'))
                 self.wandb_writer.log({"best_val_ade_5": self.min_val_metric, "epoch_best_val": self.current_epoch})
-
+                if self.min_val_metric < 1.31:
+                    wandb.alert(
+                        title='Low ADE_5',
+                        text=f'ADE_5 {self.min_val_metric} is below 1.31',
+                        level=AlertLevel.INFO  
+                    )
             # Save checkpoint
             # self.save_checkpoint(os.path.join(output_dir, 'checkpoints', str(self.current_epoch) + '.tar'))
 

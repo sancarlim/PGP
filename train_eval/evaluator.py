@@ -9,7 +9,7 @@ import numpy as np
 from nuscenes.prediction.helper import convert_local_coords_to_global
 from nuscenes.eval.prediction.data_classes import Prediction
 import json
-from train_eval.utils import collate_fn_dgl_hetero
+from train_eval.utils import Collate_heterograph
 
 
 # Initialize device:
@@ -20,7 +20,7 @@ class Evaluator:
     """
     Class for evaluating trained models
     """
-    def __init__(self, cfg: Dict, data_root: str, data_dir: str, checkpoint_path: str):
+    def __init__(self, cfg: Dict, data_root: str, data_dir: str, checkpoint_path: str, file_name: str = "results"):
         """
         Initialize evaluator object
         :param cfg: Configuration parameters
@@ -36,7 +36,7 @@ class Evaluator:
 
         # Initialize dataloader
         if 'scout' in cfg['encoder_type']:
-            collate_fn = collate_fn_dgl_hetero
+            collate_fn = Collate_heterograph(cfg['encoder_args'])
         else:
             collate_fn = None
         self.dl = torch_data.DataLoader(test_set, cfg['batch_size'], shuffle=False, num_workers=cfg['num_workers'], collate_fn=collate_fn)
@@ -54,6 +54,8 @@ class Evaluator:
         # Initialize metrics
         self.metrics = [initialize_metric(cfg['val_metrics'][i], cfg['val_metric_args'][i])
                         for i in range(len(cfg['val_metrics']))]
+        
+        self.file_name = file_name
 
     def evaluate(self, output_dir: str):
         """
@@ -80,7 +82,7 @@ class Evaluator:
 
         # compute and print average metrics
         self.print_progress(len(self.dl))
-        with open(os.path.join(output_dir, 'results', "results.txt"), "w") as out_file:
+        with open(os.path.join(output_dir, 'results', self.file_name + ".txt"), "w") as out_file:
             for metric in self.metrics:
                 avg_metric = agg_metrics[metric.name]/agg_metrics['sample_count']
                 output = metric.name + ': ' + format(avg_metric, '0.2f')
