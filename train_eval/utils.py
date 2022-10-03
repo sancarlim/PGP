@@ -163,7 +163,7 @@ class Collate_heterograph(object):
         # Lane graph
         lane_veh_adj_matrix = element['inputs']['agent_node_masks']['vehicles'].transpose(1,0) # 84 x 164  
         # Update lane_veh_adj_matrix with new masked out vehicles 
-        lane_veh_adj_matrix = lane_veh_adj_matrix[v_nodes] #num_nbr_vehicles x 164
+        lane_veh_adj_matrix = lane_veh_adj_matrix[v_nodes_mask] #num_nbr_vehicles x 164
         # create a mask for the lanes that are not empty
         lane_mask = (~(lane_node_masks[:,:,0]!=0)).any(-1) # 164
         # Add row of zeros to the adjacency matrix to account for the focal vehicle

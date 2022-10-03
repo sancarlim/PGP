@@ -10,6 +10,8 @@ parser.add_argument("-r", "--data_root", help="Root directory with data", requir
 parser.add_argument("-d", "--data_dir", help="Directory to extract data", required=True)
 parser.add_argument("-o", "--output_dir", help="Directory to save results", required=True)
 parser.add_argument("-w", "--checkpoint", help="Path to pre-trained or intermediate checkpoint", required=True)
+parser.add_argument("-s","--submission",  action='store_true', help="Path to submission file", required=False)
+parser.add_argument("-f", "--file_name", help="File name to save results", default='',required=False)
 args = parser.parse_args()
 
 
@@ -26,5 +28,8 @@ with open(args.config, 'r') as yaml_file:
 
 
 # Evaluate
-evaluator = Evaluator(cfg, args.data_root, args.data_dir, args.checkpoint)
-evaluator.evaluate(output_dir=args.output_dir)
+evaluator = Evaluator(cfg, args.data_root, args.data_dir, args.checkpoint, args.file_name)
+if args.submission:
+    evaluator.generate_nuscenes_benchmark_submission(output_dir=args.output_dir)
+else:
+    evaluator.evaluate(output_dir=args.output_dir)
