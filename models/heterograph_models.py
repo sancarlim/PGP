@@ -493,7 +493,7 @@ class ieHGCN(BaseModel):
             )
         )
 
-    def forward(self, hg, h_dict):
+    def forward(self, hg, h_dict, att=False):
         """
         The forward part of the ieHGCN.
         
@@ -511,9 +511,12 @@ class ieHGCN(BaseModel):
         """
         with hg.local_scope(): 
             for l in range(self.num_layers):
-                h_dict = self.hgcn_layers[l](hg, h_dict)
+                h_dict, attention = self.hgcn_layers[l](hg, h_dict)
             
-            return h_dict['l'], h_dict['v']
+            if att:
+                return h_dict, attention
+            else:
+                return h_dict['l'], h_dict['v']
 
 
 class HeteroRGCN(nn.Module):

@@ -772,4 +772,4 @@ class ieHGCNConv(nn.Module):
             for ntype in rst.keys():
                 rst[ntype] = self.activation(rst[ntype])
             
-        return rst
+        return rst, attention
