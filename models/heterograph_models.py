@@ -511,7 +511,7 @@ class ieHGCN(BaseModel):
         """
         with hg.local_scope(): 
             for l in range(self.num_layers):
-                h_dict, attention = self.hgcn_layers[l](hg, h_dict)
+                h_dict, attention = self.hgcn_layers[l](hg, h_dict, att)
             
             if att:
                 return h_dict['l'], h_dict['v'], attention

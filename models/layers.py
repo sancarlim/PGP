@@ -698,7 +698,7 @@ class ieHGCNConv(nn.Module):
         self.activation = activation
         
 
-    def forward(self, hg, h_dict):
+    def forward(self, hg, h_dict, att=False):
         """
         The forward part of the ieHGCNConv.
         
@@ -723,6 +723,7 @@ class ieHGCNConv(nn.Module):
             key = {}
             attn = {}
             attention = {}
+            edge_att = {}
             
             # formulas (3)-1 and (3)-2
             for ntype in hg.dsttypes:
@@ -739,19 +740,28 @@ class ieHGCNConv(nn.Module):
                 rel_graph = hg[srctype, etype, dsttype]
                 if srctype not in h_dict:
                     continue
-                # formulas (2)-2
-                dstdata = self.mods[etype](
+                # formulas (2)-2                
+                if att:
+                    # Retrieve edge attention from object-level aggregation
+                    dstdata, e_att = self.mods[etype](
                     rel_graph,
-                    (h_dict[srctype], h_dict[dsttype])
-                ).squeeze(-2)
-                
+                    (h_dict[srctype], h_dict[dsttype]), 
+                    att
+                    )
+                    edge_att[etype] = e_att.squeeze()
+                    dstdata = dstdata.squeeze(-2)
+                else:
+                    dstdata = self.mods[etype](
+                        rel_graph,
+                        (h_dict[srctype], h_dict[dsttype]) 
+                    ).squeeze(-2) # (num_nodes_dst, out_size)
                 outputs[dsttype].append(dstdata)
                 # formulas (3)-3
-                attn[dsttype] = self.linear_k[dsttype](dstdata)
+                attn[dsttype] = self.linear_k[dsttype](dstdata) # (num_nodes_dst, attn_size)
                 # formulas (4)-2
-                h_attn = self.W_al(attn)
+                h_attn = self.W_al(attn) # (num_nodes_dst, 1)
                 attn.clear()
-                edge_attention = F.elu(h_attn[dsttype] + h_r[dsttype])
+                edge_attention = F.elu(h_attn[dsttype] + h_r[dsttype]) # (num_nodes_dst, 1)
                 attention[dsttype] = torch.cat((attention[dsttype], edge_attention.unsqueeze(0)))
 
             # formulas (5)
@@ -772,4 +782,4 @@ class ieHGCNConv(nn.Module):
             for ntype in rst.keys():
                 rst[ntype] = self.activation(rst[ntype])
             
-        return rst, attention
+        return rst, [attention, edge_att]

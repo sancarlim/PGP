@@ -128,7 +128,7 @@ class Visualizer:
             for i,img in enumerate(fancy_img):
                 filename = os.path.join(output_dir, 'example' + str(self.example) + self.name + scene  + '_' + str(i) +'.png')
                 plt.imsave(filename, img) 
-                filename = os.path.join(output_dir, 'results', 'gifs', 'example' + str(self.example)+ self.name  + scene  + str(i) + '_graph.png')
+                filename = os.path.join(output_dir, 'results', 'gifs', 'example' + str(self.example)+ scene + '_graph_' + self.name + '_' + str(i) + '.png')
                 plt.imsave(filename, img, dpi=300)  
             imageio.mimsave(filename, graph_img, format='GIF', fps=2)  
             """filename = os.path.join(output_dir, 'results', 'gifs', 'example' + str(n) + scene + '.gif')
@@ -220,28 +220,35 @@ class Visualizer:
                 markersize = 10
             else:
                 c = 'blue'
-                markersize = 7
+                markersize = 10*att[2][-1][node_id]  # type-level attention
             plt.plot(node_feat[-1, 0], node_feat[-1, 1], '*', color=c, markersize=markersize)
             ax.annotate(str(node_id), (node_feat[-1, 0], node_feat[-1, 1]), color='w', fontsize=10)
         
-        # Insert focal agent in vehicles_feats
-        # Plot interactions with other agents
-        for idx, e in enumerate(graph['v_interact_v'].edges()[0]):
-            if e > graph['v_interact_v'].edges()[1][idx]:
-                if graph['v_interact_v'].edges()[1][idx] == 0:
-                    color = 'w'
-                    w = .4
-                    alpha = 1 
-                    plt.arrow(vehicles_feats[e][-1,0], vehicles_feats[e][-1,1], vehicles_feats[graph['v_interact_v'].edges()[1][idx]][-1,0]-vehicles_feats[e][-1,0], 
-                        vehicles_feats[graph['v_interact_v'].edges()[1][idx]][-1,1]-vehicles_feats[e][-1,1], color=color, head_width=0.1, 
-                        length_includes_head=True,  width=w, alpha=alpha) 
+        # Retrieve object-level edge attention -> att[3:]. att[:3] is type-level attention.
+        v2v_attn = att[-1]
+        v2l_attn = att[-2]  
+        # Plot interactions with other agents for the focal vehicle
+        for idx, v in enumerate(graph['v_interact_v'].edges()[0]):
+            # if v > graph['v_interact_v'].edges()[1][idx]:
+            if graph['v_interact_v'].edges()[0][idx] == 0:
+                color = 'w'
+                # Compute attention taking into account object-level and type-level attention
+                attn = v2v_attn[idx]*2 
+                w = attn
+                alpha = max(1., w) 
+                plt.arrow(vehicles_feats[v][-1,0], vehicles_feats[v][-1,1], vehicles_feats[graph['v_interact_v'].edges()[1][idx]][-1,0]-vehicles_feats[v][-1,0], 
+                    vehicles_feats[graph['v_interact_v'].edges()[1][idx]][-1,1]-vehicles_feats[v][-1,1], color=color, head_width=0.1, 
+                    length_includes_head=True,  width=w, alpha=alpha) 
 
         # Vehicle-lane visualization
-        for idx, e in enumerate(graph['v_close_l'].edges()[0]):
-            if e == 2 or e==5:
-                plt.arrow(vehicles_feats[e][-1,0], vehicles_feats[e][-1,1], lane_pos[graph['v_close_l'].edges()[1][idx]][0]-vehicles_feats[e][-1,0], 
-                    lane_pos[graph['v_close_l'].edges()[1][idx]][1]-vehicles_feats[e][-1,1], color='g', head_width=0.1, 
-                    length_includes_head=True,  width=.08, alpha=.8)
+        for idx, v in enumerate(graph['v_close_l'].edges()[0]):
+            if v == 0:
+                attn = v2l_attn[idx]  # att[0][-1][graph['v_close_l'].edges()[1][idx]]
+                w = attn * 0.3
+                alpha = max(.7, v2l_attn[idx]) 
+                plt.arrow(vehicles_feats[v][-1,0], vehicles_feats[v][-1,1], lane_pos[graph['v_close_l'].edges()[1][idx]][0]-vehicles_feats[v][-1,0], 
+                    lane_pos[graph['v_close_l'].edges()[1][idx]][1]-vehicles_feats[v][-1,1], color='lightgreen', head_width=0.1, 
+                    length_includes_head=True,  width=w, alpha=alpha)
 
         plt.show()
         return fig, ax
@@ -507,7 +514,7 @@ class Visualizer:
                             data['inputs']['map_representation']['edge_type'][0].detach().cpu().numpy(), data['ground_truth']['evf_gt'][0].detach().cpu().numpy(), 
                             data['inputs']['node_seq_gt'][0].detach().cpu().numpy(), traj.detach().cpu().numpy(), predictions['pi'][0].detach().cpu().numpy(), 
                             cmap_cool, node_v_feats.detach().cpu().numpy(), data['inputs']['target_agent_representation'].detach().cpu().numpy(), 
-                            data['inputs']['lanes_graphs'].cpu(), predictions['att'].detach().cpu().numpy() )  
+                            data['inputs']['lanes_graphs'].cpu(), [att.detach().cpu().numpy()  for attention in predictions['att'] for att in attention.values()])  
             
             legend=ax2.legend(frameon=True, loc='upper right', facecolor='lightsteelblue', edgecolor='black', fontsize=9)
             handles, labels = ax2.get_legend_handles_labels() 
