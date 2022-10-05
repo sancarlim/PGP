@@ -514,9 +514,9 @@ class ieHGCN(BaseModel):
                 h_dict, attention = self.hgcn_layers[l](hg, h_dict)
             
             if att:
-                return h_dict, attention
+                return h_dict['l'], h_dict['v'], attention
             else:
-                return h_dict['l'], h_dict['v']
+                return h_dict['l'], h_dict['v'], None
 
 
 class HeteroRGCN(nn.Module):

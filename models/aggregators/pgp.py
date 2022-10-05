@@ -70,6 +70,10 @@ class PGP(PredictionAggregator):
         node_masks = encodings['context_encoding']['combined_masks']
         s_next = encodings['s_next']
         edge_type = encodings['edge_type']
+        if 'att' in encodings:
+            att = encodings['att']
+        else:
+            att = None
 
         # Compute pi (log probs)
         pi = self.compute_policy(target_agent_encoding, node_encodings, node_masks, s_next, edge_type) # (batch_size, num_nodes, num_edges) [64 164 15]
@@ -83,9 +87,9 @@ class PGP(PredictionAggregator):
             sampled_traversals = self.sample_policy(torch.exp(pi), s_next, init_node) # (batch_size, num_samples, horizon) [64 1000 15]
 
         # Selectively aggregate context along traversed paths
-        agg_enc = self.aggregate(sampled_traversals, node_encodings, target_agent_encoding)
+        agg_enc = self.aggregate(sampled_traversals, node_encodings, target_agent_encoding) #[64 1000 160]
 
-        outputs = {'agg_encoding': agg_enc, 'pi': pi}
+        outputs = {'agg_encoding': agg_enc, 'pi': pi, 'att': encodings['att']}
         return outputs
 
     def aggregate(self, sampled_traversals, node_encodings, target_agent_encoding) -> torch.Tensor:

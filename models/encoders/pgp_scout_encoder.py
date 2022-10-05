@@ -415,6 +415,7 @@ class PGP_SCOUTEncoder(PredictionEncoder):
         lane_node_feats_batched = lane_node_feats[batch_lane_node_masks] # BN,20,7
         lane_node_embedding = self.leaky_relu(self.node_emb(lane_node_feats)) 
         lane_node_enc = self.variable_size_gru_encode(lane_node_embedding, lane_node_masks, self.node_gru_encoder, batched=True) 
+        att = "att" in inputs 
         if self.hg=="hgt":
             lanes_graphs.nodes['l'].data['inp'] = lane_node_enc
             lanes_graphs.nodes['p'].data['inp'] = nbr_ped_enc
@@ -423,7 +424,7 @@ class PGP_SCOUTEncoder(PredictionEncoder):
             lane_node_enc, interaction_feats_batched = self.hg_encoder(lanes_graphs, out_key=['l','v'])
         else:
             h_dict = {'l': lane_node_enc, 'p': nbr_ped_enc, 'v': interaction_feats_batched}#, 'o': nbr_obj_enc}
-            lane_node_enc, interaction_feats_batched = self.hg_encoder(lanes_graphs, h_dict)  
+            lane_node_enc, interaction_feats_batched, att = self.hg_encoder(lanes_graphs, h_dict, att)  
         lane_node_enc = self.scatter_batched_input(lane_node_enc, batch_lane_node_masks.unsqueeze(-1).unsqueeze(-1))
         interaction_feats = self.scatter_batched_input(interaction_feats_batched, interaction_masks[:,:,-1:].unsqueeze(-1)) # B, N, 32
         target_agent_enc = torch.cat((target_agent_enc, interaction_feats[:,0]), dim=-1) # B, 64
@@ -455,7 +456,7 @@ class PGP_SCOUTEncoder(PredictionEncoder):
 
         # Return encodings
         encodings = {'target_agent_encoding': target_agent_enc, #before interaction
-                     'context_encoding': {'combined': lane_node_enc,
+                     'context_encoding': {'combined': lane_node_enc, 
                                           'combined_masks': lane_node_masks, 
                                           'map': None,
                                           'vehicles': None,
@@ -464,6 +465,7 @@ class PGP_SCOUTEncoder(PredictionEncoder):
                                           'vehicle_masks': None,
                                           'pedestrian_masks': None
                                           },
+                     'att'  : att
                      }
 
         # Pass on initial nodes and edge structure to aggregator if included in inputs
