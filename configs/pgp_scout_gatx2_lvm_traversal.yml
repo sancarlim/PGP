@@ -37,7 +37,7 @@ encoder_args:
   feat_drop: 0.0
   attn_drop: 0.0
   num_layers: 2
-  node_feat_size: 6
+  node_feat_size: 8
   node_emb_size: 16
   node_enc_size: 32
   node_attn_size: 32
@@ -49,8 +49,8 @@ encoder_args:
   num_heads: 1
   hg: "hgcn"
   agent_mask_prob_v: 0 
-  lane_mask_prob: 0
-  mask_frames: 0.4
+  lane_mask_prob: 0.
+  mask_frames: 0. 
 
 
 # Aggregator parameters
