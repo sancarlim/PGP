@@ -220,7 +220,7 @@ class Visualizer:
                 markersize = 10
             else:
                 c = 'blue'
-                markersize = 10*att[2][-1][node_id]  # type-level attention
+                markersize = 7 
             plt.plot(node_feat[-1, 0], node_feat[-1, 1], '*', color=c, markersize=markersize)
             ax.annotate(str(node_id), (node_feat[-1, 0], node_feat[-1, 1]), color='w', fontsize=10)
         
@@ -233,22 +233,23 @@ class Visualizer:
             if graph['v_interact_v'].edges()[0][idx] == 0:
                 color = 'w'
                 # Compute attention taking into account object-level and type-level attention
-                attn = v2v_attn[idx]*2 
+                attn = v2v_attn[idx]*att[2][-1][graph['v_interact_v'].edges()[1][idx]]*2.5 
                 w = attn
-                alpha = max(1., w) 
+                alpha = max(1., v2v_attn[idx]) 
                 plt.arrow(vehicles_feats[v][-1,0], vehicles_feats[v][-1,1], vehicles_feats[graph['v_interact_v'].edges()[1][idx]][-1,0]-vehicles_feats[v][-1,0], 
                     vehicles_feats[graph['v_interact_v'].edges()[1][idx]][-1,1]-vehicles_feats[v][-1,1], color=color, head_width=0.1, 
                     length_includes_head=True,  width=w, alpha=alpha) 
 
         # Vehicle-lane visualization
-        for idx, v in enumerate(graph['v_close_l'].edges()[0]):
-            if v == 0:
-                attn = v2l_attn[idx]  # att[0][-1][graph['v_close_l'].edges()[1][idx]]
-                w = attn * 0.3
-                alpha = max(.7, v2l_attn[idx]) 
-                plt.arrow(vehicles_feats[v][-1,0], vehicles_feats[v][-1,1], lane_pos[graph['v_close_l'].edges()[1][idx]][0]-vehicles_feats[v][-1,0], 
-                    lane_pos[graph['v_close_l'].edges()[1][idx]][1]-vehicles_feats[v][-1,1], color='lightgreen', head_width=0.1, 
-                    length_includes_head=True,  width=w, alpha=alpha)
+        if False:
+            for idx, v in enumerate(graph['v_close_l'].edges()[0]):
+                if v == 0:
+                    attn = v2l_attn[idx]*att[0][-1][graph['v_close_l'].edges()[1][idx]]
+                    w = attn * 0.3 if attn > 0.6 else 0
+                    alpha = max(.5, v2l_attn[idx]) 
+                    plt.arrow(vehicles_feats[v][-1,0], vehicles_feats[v][-1,1], lane_pos[graph['v_close_l'].edges()[1][idx]][0]-vehicles_feats[v][-1,0], 
+                        lane_pos[graph['v_close_l'].edges()[1][idx]][1]-vehicles_feats[v][-1,1], color='lightgreen', head_width=0.1, 
+                        length_includes_head=True,  width=w, alpha=alpha)
 
         plt.show()
         return fig, ax
@@ -304,7 +305,7 @@ class Visualizer:
                 min_patch = center_patch - diff_patch / 2
                 max_patch = center_patch + diff_patch / 2
             my_patch = (min_patch[0], min_patch[1], max_patch[0], max_patch[1])
-            my_patch = (min_patch[0], min_patch[1], max_patch[0] , max_patch[1])
+            my_patch = (min_patch[0]-20, min_patch[1]+20, max_patch[0]-20 , max_patch[1]+20)
             
             fig2, ax2 = nusc_map.render_map_patch(my_patch, layers, figsize=(10, 10), alpha=0.3,
                                         render_egoposes_range=False,
@@ -322,20 +323,23 @@ class Visualizer:
 
             # mask out vehicles of interest
             if idx == idcs[0]: 
-                vehicle_masked_t = []#annotations[7]['instance_token']#[annotations[i]['instance_token'] for i in range(len(annotations)) if 'vehicle' in annotations[i]['category_name'] and annotations[i]['instance_token']!=i_t and mask_out[i]]
+                vehicle_masked_t = [] #annotations[4]['instance_token']#[annotations[i]['instance_token'] for i in range(len(annotations)) if 'vehicle' in annotations[i]['category_name'] and annotations[i]['instance_token']!=i_t and mask_out[i]]
                 mask_vehicles = []
                 for i in range(len(annotations)):
                     if 'vehicle' in annotations[i]['category_name'] and annotations[i]['instance_token']!=i_t:
                         if annotations[i]['instance_token'] in vehicle_masked_t:
                             mask_vehicles.append(1)
                         else:
-                            mask_vehicles.append(0) 
-               
+                            mask_vehicles.append(0)  
                 #[mask_out[i] for i in range(len(annotations)) if 'vehicle' in annotations[i]['category_name'] and annotations[i]['instance_token']!=i_t]
             else:
                 mask_vehicles = [1 if annotations[i]['instance_token'] in vehicle_masked_t else 0 for i in range(len(annotations)) if 'vehicle' in annotations[i]['category_name'] and annotations[i]['instance_token']!=i_t]
-            #data['inputs']['surrounding_agent_representation']['vehicle_masks'][0,:len(mask_vehicles)] += torch.tensor(mask_vehicles).unsqueeze(-1).unsqueeze(-1).repeat(1,5,5).to(device)
-            #data['inputs']['agent_node_masks']['vehicles'][:,:,:len(mask_vehicles)] += torch.tensor(mask_vehicles).unsqueeze(0).unsqueeze(1).repeat(1,164,1).to(device)
+            data['inputs']['surrounding_agent_representation']['vehicle_masks'][:len(mask_vehicles)] += np.tile(np.expand_dims(np.array(mask_vehicles), (-2,-1)), [1,5,5])
+            data['inputs']['agent_node_masks']['vehicles'][:,:len(mask_vehicles)] += np.tile(np.expand_dims(np.array(mask_vehicles), (0)), [164,1])  
+            # Remove agent to adjacency matrix  
+            data['inputs']['surrounding_agent_representation']['adj_matrix'][0,np.where(np.array(mask_vehicles)==1)[0]+1] = 0
+            data['inputs']['surrounding_agent_representation']['adj_matrix'][np.where(np.array(mask_vehicles)==1)[0]+1,0] = 0
+            data['inputs']['surrounding_agent_representation']['adj_matrix'][np.where(np.array(mask_vehicles)==1)[0]+1,np.where(np.array(mask_vehicles)==1)[0]+1] = 0
             
             for n, ann in enumerate(annotations):
                 if ann['instance_token'] in vehicle_masked_t and ann['instance_token']!=i_t:
