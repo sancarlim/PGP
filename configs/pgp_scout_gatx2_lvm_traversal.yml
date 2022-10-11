@@ -36,8 +36,9 @@ encoder_args:
   num_heads_lanes: [1, 1, 1, 1, 1]
   feat_drop: 0.0
   attn_drop: 0.0
+  residual: False
   num_layers: 2
-  node_feat_size: 8
+  node_feat_size: 6
   node_emb_size: 16
   node_enc_size: 32
   node_attn_size: 32

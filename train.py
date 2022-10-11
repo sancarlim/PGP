@@ -4,6 +4,9 @@ from train_eval.trainer import Trainer
 from torch.utils.tensorboard import SummaryWriter
 import os
 import wandb
+import random
+import numpy as np
+import torch
 
 # Parse arguments
 parser = argparse.ArgumentParser()
@@ -15,22 +18,32 @@ parser.add_argument("-n", "--num_epochs", help="Number of epochs to run training
 parser.add_argument("-w", "--checkpoint", help="Path to pre-trained or intermediate checkpoint", required=False)
 parser.add_argument('--nowandb', action='store_true', help='use this flag to DISABLE wandb logging') 
 parser.add_argument('--sweep', action='store_true', help='use this flag to indicate that this is a sweep run')  
-parser.add_argument('--aggregator_args.num_heads', type=int, default=16, help='number of heads for aggregator')
-parser.add_argument('--aggregator_args.pre_train', type=bool, default=True)
-parser.add_argument('--encoder_args.target_agent_enc_size', type=int, default=128)
-parser.add_argument('--encoder_args.target_agent_emb_size', type=int, default=64)
+parser.add_argument('--aggregator_args.num_heads', type=int, default=32, help='number of heads for aggregator')
+parser.add_argument('--aggregator_args.pre_train', type=bool, default=False)
+parser.add_argument('--encoder_args.target_agent_enc_size', type=int, default=32)
+parser.add_argument('--encoder_args.target_agent_emb_size', type=int, default=16)
+parser.add_argument('--encoder_args.node_attn_size', type=int, default=32)
 parser.add_argument('--encoder_args.num_heads_lanes', type=int, default=1)
 parser.add_argument('--encoder_args.feat_drop', type=float, default=0.)
 parser.add_argument('--encoder_args.attn_drop', type=float, default=0.)
-parser.add_argument('--encoder_args.num_layers', type=int, default=3)
+parser.add_argument('--encoder_args.residual', type=bool, default=False)
+parser.add_argument('--encoder_args.num_layers', type=int, default=2)
 parser.add_argument('--encoder_args.node_hgt_size', type=int, default=32)
 parser.add_argument('--encoder_args.hg', type=str, default="simple")
 parser.add_argument('--optim_args.scheduler_step', type=int, default=10)
 parser.add_argument('--optim_args.lr', type=float, default=0.001)
 parser.add_argument('--batch_size', type=int, default=16)
+parser.add_argument('--seed', type=int, default=0)
 
 
 args = parser.parse_args()
+
+
+random.seed(args.seed)
+np.random.seed(args.seed)
+torch.manual_seed(args.seed) 
+torch.cuda.manual_seed_all(args.seed)
+
 
 # Load config
 with open(args.config, 'r') as yaml_file:

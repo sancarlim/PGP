@@ -89,7 +89,7 @@ class PGP(PredictionAggregator):
         # Selectively aggregate context along traversed paths
         agg_enc = self.aggregate(sampled_traversals, node_encodings, target_agent_encoding) #[64 1000 160]
 
-        outputs = {'agg_encoding': agg_enc, 'pi': pi, 'att': encodings['att']}
+        outputs = {'agg_encoding': agg_enc, 'pi': pi, 'att': att}
         return outputs
 
     def aggregate(self, sampled_traversals, node_encodings, target_agent_encoding) -> torch.Tensor:
@@ -122,7 +122,7 @@ class PGP(PredictionAggregator):
         keys = self.key_emb(node_enc_selected).permute(1, 0, 2)
         vals = self.val_emb(node_enc_selected).permute(1, 0, 2)
         key_padding_mask = torch.as_tensor(traversals_batched >= max_nodes)
-        att_op, _ = self.mha(query, keys, vals, key_padding_mask)
+        att_op, att_weights = self.mha(query, keys, vals, key_padding_mask) #attt_w = (vount_batched, 1, 15)
 
         # Repeat based on counts
         att_op = att_op.squeeze(0).repeat_interleave(counts_batched, dim=0).view(batch_size, self.num_samples, -1)

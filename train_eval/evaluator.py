@@ -82,7 +82,7 @@ class Evaluator:
 
         # compute and print average metrics
         self.print_progress(len(self.dl))
-        with open(os.path.join(output_dir, 'results', self.file_name + "results.txt"), "w") as out_file:
+        with open(os.path.join(output_dir, 'results', self.file_name + "_results.txt"), "w") as out_file:
             for metric in self.metrics:
                 avg_metric = agg_metrics[metric.name]/agg_metrics['sample_count']
                 output = metric.name + ': ' + format(avg_metric, '0.2f')

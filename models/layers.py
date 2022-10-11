@@ -664,7 +664,8 @@ class ieHGCNConv(nn.Module):
     activation: str
         the activation function
     """
-    def __init__(self, in_size, out_size, attn_size, ntypes, etypes, activation = F.elu):
+    def __init__(self, in_size, out_size, attn_size, ntypes, etypes, activation = F.elu, 
+            feat_drop = 0.0, attn_drop = 0.0, residual = False):
         super(ieHGCNConv, self).__init__()
         node_size = {}
         for ntype in ntypes:
@@ -686,8 +687,8 @@ class ieHGCNConv(nn.Module):
         mods = {
             #etype: dglnn.GraphConv(in_size, out_size, norm = 'right', 
             #                       weight = True, bias = True, allow_zero_in_degree = True)
-            etype: dglnn.GATv2Conv(in_size, out_size, num_heads = 1, feat_drop = 0.0, attn_drop = 0.0, 
-                                   bias = True, allow_zero_in_degree = True)
+            etype: dglnn.GATv2Conv(in_size, out_size, num_heads = 1, feat_drop = feat_drop, attn_drop = attn_drop, 
+                                   bias = True, allow_zero_in_degree = True, residual=residual)
             for etype in etypes
             }
         self.mods = nn.ModuleDict(mods)

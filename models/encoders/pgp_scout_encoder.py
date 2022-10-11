@@ -294,11 +294,13 @@ class PGP_SCOUTEncoder(PredictionEncoder):
         self.hg = args['hg']
         if args['hg'] == 'hgt': 
             # HeteroGraph Transformer
-            self.hg_encoder = HGT({'l':0, 'v':1, 'p':2, 'o':3}, {'proximal':0, 'successor':1, 'v_close_l':2,'v_interact_v':3,'p_interact_v':4,'o_interact_v':5 }, args['node_enc_size'], args['node_attn_size'], 
-                                    args['node_out_hgt_size'], args['num_layers'], args['num_heads_lanes'], use_norm=True)
+            self.hg_encoder = HGT({'l':0, 'v':1, 'p':2, 'o':3}, {'proximal':0, 'successor':1, 'v_close_l':2,'v_interact_v':3,'p_interact_v':4,'o_interact_v':5 }, 
+                                args['node_enc_size'], args['node_attn_size'], args['node_out_hgt_size'], args['num_layers'], args['num_heads_lanes'], use_norm=True)
         elif args['hg'] == 'hgcn':   
-            self.hg_encoder = ieHGCN(args['num_layers'], args['node_enc_size'], args['node_enc_size'], args['node_out_hgt_size'], attn_dim=args['node_attn_size'], ntypes={'l':0, 'v':1, 'p':2}, etypes={'proximal':0, 'successor':1, 'v_close_l':2,'v_interact_v':3,'p_interact_v':4}) #, 'o':3},
-                                   #,'o_interact_v':5 })
+            self.hg_encoder = ieHGCN(args['num_layers'], args['node_enc_size'], args['node_enc_size'], args['node_out_hgt_size'], attn_dim=args['node_attn_size'], 
+                                feat_drop=args['feat_drop'], attn_drop=args['attn_drop'], residual=args['residual'], ntypes={'l':0, 'v':1, 'p':2},
+                                etypes={'proximal':0, 'successor':1, 'v_close_l':2,'v_interact_v':3,'p_interact_v':4}) #, 'o':3},
+                                #,'o_interact_v':5 })
         else:
             self.hg_encoder = SimpleHGN(edge_dim=args['node_attn_size'], num_etypes=5, in_dim=args['node_enc_size'], hidden_dim=args['node_enc_size'], num_classes=args['node_out_hgt_size'], 
                                     num_layers=args['num_layers'], heads=args['num_heads_lanes'])

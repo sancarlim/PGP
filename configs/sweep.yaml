@@ -7,40 +7,45 @@ metric:
   name: val/min_ade_5
 early_terminate:
   type: hyperband
-  min_iter: 3
+  min_iter: 6
 parameters: 
+  seed:
+    min: 0
+    max: 10000000
   aggregator_args.num_heads:
-    values: [16,32,64]
+    values: [32 ]
   aggregator_args.pre_train:
-    values: [True, False]
+    values: [ False]
   encoder_args.target_agent_enc_size:
-     values: [32,64,128]
+     values: [32] #[32,64,128]
   encoder_args.target_agent_emb_size:
-    values: [8,16,32,64] 
+    values: [16] #[16,32] 
   encoder_args.num_heads_lanes:
-    values: [1,2,4,8,16,32,64]
+    values: [1] #[1,2,4]
   encoder_args.feat_drop:
-    max: 0.4
-    min: 0. 
+    #max: 0.4 
+    #min: 0.
+    values: [0.0]   
   encoder_args.attn_drop:
-    max: 0.4 
-    min: 0.
+    #max: 0.4 
+    #min: 0.
+    values: [0.0]
+  encoder_args.residual:
+    values: [False]
   encoder_args.num_layers:
-    max: 5
-    min: 1 
-  encoder_args.node_hgt_size:
-    values: [32,64,128]
-  encoder_args.hgt:
-    values: [True, False]
+    values: [2]  
+    # max: 4
+    # min: 1  
+  encoder_args.node_attn_size:
+    values: [32] #[32,64,128]
+  encoder_args.hg:
+    values: ["hgcn"]
   optim_args.scheduler_step:
-    max: 20
-    min: 5 
+    values: [10] #,20,50]
   optim_args.lr:
-    max: 0.002
-    min: 0.0005 
+    values: [0.001] #,0.0001, 0.00005]
   batch_size:
-    max: 128
-    min: 32 
+    values : [64] #[16,32,64,128]
 
 command:
   - ${env}
@@ -50,7 +55,7 @@ command:
   - "/home/sandra/PROGRAMAS/PGP/configs/pgp_scout_gatx2_lvm_traversal.yml"
   - "--sweep"
   - "-d"
-  - "/media/14TBDISK/sandra/nuscenes_processed/preprocessed_pgp/data-dgl-hetero"
+  - "/media/14TBDISK/sandra/nuscenes_processed/preprocessed_pgp/data-hetero"
   - "-o"
   - "/media/14TBDISK/sandra/PGP/pgp-scout/"
   - "-n"

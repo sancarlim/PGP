@@ -453,7 +453,8 @@ class ieHGCN(BaseModel):
                    hg.etypes
                    )
 
-    def __init__(self, num_layers, in_dim, hidden_dim, out_dim, attn_dim, ntypes, etypes):
+    def __init__(self, num_layers, in_dim, hidden_dim, out_dim, attn_dim, ntypes, etypes, 
+                feat_drop=0.0, attn_drop=0.0, residual=False):
         super(ieHGCN, self).__init__()
         self.num_layers = num_layers
         self.activation = F.elu
@@ -467,10 +468,13 @@ class ieHGCN(BaseModel):
                 ntypes,
                 etypes,
                 self.activation,
+                feat_drop = feat_drop,
+                attn_drop = attn_drop,
+                residual = residual
             )
         )
 
-        for i in range(1, num_layers - 1):
+        for i in range(1, num_layers-1):
             self.hgcn_layers.append(
                 ieHGCNConv(
                     hidden_dim,
@@ -478,10 +482,13 @@ class ieHGCN(BaseModel):
                     attn_dim,
                     ntypes,
                     etypes,
-                    self.activation
+                    self.activation,
+                    feat_drop = feat_drop,
+                    attn_drop = attn_drop,
+                    residual = residual
                 )
-            )
-        
+        )
+    
         self.hgcn_layers.append(
             ieHGCNConv(
                 hidden_dim,
