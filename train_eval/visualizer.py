@@ -26,8 +26,8 @@ import time
 
 # Initialize device:
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-patch_margin = 35
-min_diff_patch = 35
+patch_margin = 25
+min_diff_patch = 25
 ego_car = plt.imread('/media/14TBDISK/sandra//DBU_Graph/NuScenes/icons/Car TOP_VIEW ROBOT.png')
 agent = plt.imread('/media/14TBDISK/sandra/DBU_Graph/NuScenes/icons/Car TOP_VIEW 375397.png')
 cars = plt.imread('/media/14TBDISK/sandra/DBU_Graph/NuScenes/icons/Car TOP_VIEW 80CBE5.png') 
@@ -75,6 +75,7 @@ class Visualizer:
         self.counterfactual = counterfactual
         self.mask_lanes = mask_lanes
         self.name = name
+        self.legend = False
 
         # Initialize model
         self.model = initialize_prediction_model(cfg['encoder_type'], cfg['aggregator_type'], cfg['decoder_type'],
@@ -241,7 +242,7 @@ class Visualizer:
                     length_includes_head=True,  width=w, alpha=alpha) 
 
         # Vehicle-lane visualization
-        if False:
+        if True:
             for idx, v in enumerate(graph['v_close_l'].edges()[0]):
                 if v == 0:
                     attn = v2l_attn[idx]*att[0][-1][graph['v_close_l'].edges()[1][idx]]
@@ -271,7 +272,7 @@ class Visualizer:
         imgs_fancy = []
         graph_img = [] 
         vehicle_masked_t = []
-        for idx in idcs[:1]: 
+        for idx in idcs[:]: 
             # Load data
             data = self.ds[idx]
             i_t = data['inputs']['instance_token']
@@ -305,18 +306,18 @@ class Visualizer:
                 min_patch = center_patch - diff_patch / 2
                 max_patch = center_patch + diff_patch / 2
             my_patch = (min_patch[0], min_patch[1], max_patch[0], max_patch[1])
-            my_patch = (min_patch[0]-20, min_patch[1]+20, max_patch[0]-20 , max_patch[1]+20)
+            my_patch = (min_patch[0]+25, min_patch[1]-25, max_patch[0]+25, max_patch[1]-25)
             
             fig2, ax2 = nusc_map.render_map_patch(my_patch, layers, figsize=(10, 10), alpha=0.3,
                                         render_egoposes_range=False,
-                                        render_legend=True, bitmap=None) 
+                                        render_legend=self.legend, bitmap=None) 
             cmap_cool = plt.get_cmap('cool')
             sm_cool = plt.cm.ScalarMappable(cmap=cmap_cool , norm=plt.Normalize(vmin=0, vmax=1)) 
             cbar_cool = plt.colorbar(sm_cool)
             cbar_cool.set_label('Probability of each mode', rotation=270)
                                         
             r_img = rotate(ego_car, quaternion_yaw(Quaternion(pose_record['rotation']))*180/math.pi,reshape=True)
-            oi = OffsetImage(r_img, zoom=0.011, zorder=500)
+            oi = OffsetImage(r_img, zoom=0.017, zorder=500)
             veh_box = AnnotationBbox(oi, (ego_poses[0], ego_poses[1]), frameon=False)
             veh_box.zorder = 500
             ax2.add_artist(veh_box)
@@ -385,7 +386,7 @@ class Visualizer:
                     agent_translation = ann['translation']
                     agent_rotation = ann['rotation']
                     r_img = rotate(agent, quaternion_yaw(Quaternion(ann['rotation']))*180/math.pi,reshape=True)
-                    oi = OffsetImage(r_img, zoom=0.011, zorder=500 )
+                    oi = OffsetImage(r_img, zoom=0.017, zorder=500 )
                     veh_box = AnnotationBbox(oi, (history[-1, 0], history[-1, 1]), frameon=False)
                     veh_box.zorder = 800
                     ax2.add_artist(veh_box)                  
@@ -400,7 +401,7 @@ class Visualizer:
                     ax2.add_artist(circle)
                 elif ann['category_name'].split('.')[0] == 'vehicle': 
                     r_img = rotate(cars, quaternion_yaw(Quaternion(ann['rotation']))*180/math.pi,reshape=True)
-                    oi = OffsetImage(r_img, zoom=0.011, zorder=5)
+                    oi = OffsetImage(r_img, zoom=0.017, zorder=5)
                     veh_box = AnnotationBbox(oi, (history[-1, 0], history[-1, 1]), frameon=False)
                     veh_box.zorder = 5
                     ax2.add_artist(veh_box)                 
@@ -432,14 +433,14 @@ class Visualizer:
                     elif idx > idcs[6]:
                         fict_idx = 3 
                 else:  
-                    fict_idx = 5
+                    fict_idx = 3
                 history_fict = np.repeat(future[i_t][fict_idx:fict_idx+1],5,0)
                 future_fict = np.repeat(future[i_t][fict_idx:fict_idx+1],12,0)
                 ax2.plot(history_fict[:, 0], history_fict[:, 1], 'k--')
                 ax2.plot(future_fict[:, 0], future_fict[:, 1], 'w--')
                 r_img = rotate(cars, quaternion_yaw(Quaternion(ann['rotation']))*180/math.pi,reshape=True)
                 rotation_fict = ann['rotation']
-                oi = OffsetImage(r_img, zoom=0.01, zorder=5)
+                oi = OffsetImage(r_img, zoom=0.017, zorder=5)
                 veh_box = AnnotationBbox(oi, (history_fict[-1, 0], history_fict[-1, 1]), frameon=False)
                 veh_box.zorder = 5
                 ax2.add_artist(veh_box) 
@@ -520,34 +521,35 @@ class Visualizer:
                             cmap_cool, node_v_feats.detach().cpu().numpy(), data['inputs']['target_agent_representation'].detach().cpu().numpy(), 
                             data['inputs']['lanes_graphs'].cpu(), [att.detach().cpu().numpy()  for attention in predictions['att'] for att in attention.values()])  
             
-            legend=ax2.legend(frameon=True, loc='upper right', facecolor='lightsteelblue', edgecolor='black', fontsize=9)
-            handles, labels = ax2.get_legend_handles_labels() 
-            idx = labels.index("lane")
-            handles.pop(idx)
-            labels.pop(idx)
-            idx=labels.index("road_block")
-            handles.pop(idx)
-            labels.pop(idx)
-            labels.append("2s past trajectory")
-            handles.append(ax2.plot(history[:, 0], history[:, 1], 'k--' )[0]) 
-            labels.append("6s future ground truth trajectory")
-            handles.append(ax2.plot(future_plot[:, 0], future_plot[:, 1], 'w--' )[0]) 
-            handles.append(Patch(facecolor='red', edgecolor='r'))
-            labels.append("Autonomous Vehicle")
-            handles.append(Patch(facecolor='darkblue', edgecolor='b'))
-            labels.append("Focal vehicle")
-            handles.append(Patch(facecolor='lightblue', edgecolor='c')) 
-            labels.append("Surrounding vehicles")
-            handles.append(Line2D([], [], color="c", marker='o', markersize=6,  markerfacecolor="c", markeredgecolor="c", linestyle='None'))
-            labels.append("Pedestrians")
-            handles.append(Line2D([], [], color="g", marker='o', markersize=6,  markerfacecolor="g", markeredgecolor="g", linestyle='None'))
-            labels.append("Bycicles")
-            handles.append(Line2D([], [], color="y", marker='o', markersize=6,  markerfacecolor="y", markeredgecolor="y", linestyle='None'))
-            labels.append("Objects")
-            legend._legend_box = None
-            legend._init_legend_box(handles, labels)
-            legend._set_loc(legend._loc)
-            legend.set_title(legend.get_title().get_text())
+            if self.legend:
+                legend=ax2.legend(frameon=True, loc='upper right', facecolor='lightsteelblue', edgecolor='black', fontsize=9)
+                handles, labels = ax2.get_legend_handles_labels() 
+                idx = labels.index("lane")
+                handles.pop(idx)
+                labels.pop(idx)
+                idx=labels.index("road_block")
+                handles.pop(idx)
+                labels.pop(idx)
+                labels.append("2s past trajectory")
+                handles.append(ax2.plot(history[:, 0], history[:, 1], 'k--' )[0]) 
+                labels.append("6s future ground truth trajectory")
+                handles.append(ax2.plot(future_plot[:, 0], future_plot[:, 1], 'w--' )[0]) 
+                handles.append(Patch(facecolor='red', edgecolor='r'))
+                labels.append("Autonomous Vehicle")
+                handles.append(Patch(facecolor='darkblue', edgecolor='b'))
+                labels.append("Focal vehicle")
+                handles.append(Patch(facecolor='lightblue', edgecolor='c')) 
+                labels.append("Surrounding vehicles")
+                handles.append(Line2D([], [], color="c", marker='o', markersize=6,  markerfacecolor="c", markeredgecolor="c", linestyle='None'))
+                labels.append("Pedestrians")
+                handles.append(Line2D([], [], color="g", marker='o', markersize=6,  markerfacecolor="g", markeredgecolor="g", linestyle='None'))
+                labels.append("Bycicles")
+                handles.append(Line2D([], [], color="y", marker='o', markersize=6,  markerfacecolor="y", markeredgecolor="y", linestyle='None'))
+                labels.append("Objects")
+                legend._legend_box = None
+                legend._init_legend_box(handles, labels)
+                legend._set_loc(legend._loc)
+                legend.set_title(legend.get_title().get_text())
             
             
             """traj_gt = data['ground_truth']['traj'][0]
