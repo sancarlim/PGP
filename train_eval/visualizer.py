@@ -26,8 +26,6 @@ import time
 
 # Initialize device:
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-patch_margin = 25
-min_diff_patch = 25
 ego_car = plt.imread('/media/14TBDISK/sandra//DBU_Graph/NuScenes/icons/Car TOP_VIEW ROBOT.png')
 agent = plt.imread('/media/14TBDISK/sandra/DBU_Graph/NuScenes/icons/Car TOP_VIEW 375397.png')
 cars = plt.imread('/media/14TBDISK/sandra/DBU_Graph/NuScenes/icons/Car TOP_VIEW 80CBE5.png') 
@@ -76,6 +74,8 @@ class Visualizer:
         self.mask_lanes = mask_lanes
         self.name = name
         self.legend = False
+        self.patch_margin = 20
+        self.min_diff_patch = 20
 
         # Initialize model
         self.model = initialize_prediction_model(cfg['encoder_type'], cfg['aggregator_type'], cfg['decoder_type'],
@@ -272,7 +272,7 @@ class Visualizer:
         imgs_fancy = []
         graph_img = [] 
         vehicle_masked_t = []
-        for idx in idcs[:]: 
+        for idx in idcs[:1]: 
             # Load data
             data = self.ds[idx]
             i_t = data['inputs']['instance_token']
@@ -296,18 +296,29 @@ class Visualizer:
                 pose_record[history_name].append(self.ns.get('ego_pose', prev_sample_data['ego_pose_token'])['rotation'])  
             """
             
-            # Render the map patch with the current ego poses.
-            min_patch = np.floor(ego_poses - patch_margin)
-            max_patch = np.ceil(ego_poses + patch_margin)
+            # Render the map patch with the current ego poses. 
+            if self.example == 4 or self.example==9:
+                self.patch_margin = 25
+            min_patch = np.floor(ego_poses - self.patch_margin)
+            max_patch = np.ceil(ego_poses + self.patch_margin)
             diff_patch = max_patch - min_patch
-            if any(diff_patch < min_diff_patch):
+            if any(diff_patch < self.min_diff_patch):
                 center_patch = (min_patch + max_patch) / 2
-                diff_patch = np.maximum(diff_patch, min_diff_patch)
+                diff_patch = np.maximum(diff_patch, self.min_diff_patch)
                 min_patch = center_patch - diff_patch / 2
                 max_patch = center_patch + diff_patch / 2
             my_patch = (min_patch[0], min_patch[1], max_patch[0], max_patch[1])
-            my_patch = (min_patch[0]+25, min_patch[1]-25, max_patch[0]+25, max_patch[1]-25)
-            
+            if self.example == 5:
+                my_patch = (min_patch[0]+25, min_patch[1]-30, max_patch[0]+25, max_patch[1]-30)
+            elif self.example == 4:
+                my_patch = (min_patch[0]+25, min_patch[1]-30, max_patch[0]+25, max_patch[1]-30)
+            elif self.example == 3:
+                my_patch = (min_patch[0]-10, min_patch[1]+20, max_patch[0]-10 , max_patch[1]+20)
+            elif self.example == 9:
+                my_patch = (min_patch[0]-20, min_patch[1]-25, max_patch[0]-20 , max_patch[1]-25)
+            elif self.example == 2 or self.example == 1:
+                my_patch = (min_patch[0]-20, min_patch[1]+10, max_patch[0]-20 , max_patch[1]+10)
+
             fig2, ax2 = nusc_map.render_map_patch(my_patch, layers, figsize=(10, 10), alpha=0.3,
                                         render_egoposes_range=False,
                                         render_legend=self.legend, bitmap=None) 
@@ -463,10 +474,11 @@ class Visualizer:
 
             # Plot visited lanes and mask 
             if self.mask_lanes: 
+                mask_out_lanes = []
                 node_feats = data['inputs']['map_representation']['lane_node_feats'] 
                 evf_gt = data['ground_truth']['evf_gt'] 
                 snext = data['inputs']['map_representation']['s_next']  
-                for node_id in data['inputs']['node_seq_gt'].astype(int)[data['inputs']['node_seq_gt'].astype(int)<len(node_feats)][:2]:
+                for node_id in data['inputs']['node_seq_gt'].astype(int)[data['inputs']['node_seq_gt'].astype(int)<len(node_feats)][:3]:
                     node_feat = node_feats[node_id]
                     next_lanes = snext[node_id][evf_gt[node_id]==1].astype(int)  # 
                     feat_len = np.sum(np.sum(np.absolute(node_feat), axis=1) != 0)
@@ -479,7 +491,14 @@ class Visualizer:
                             feat_len = np.sum(np.sum(np.absolute(node_feats[next_lane]), axis=1) != 0)
                             global_node_coords = convert_local_coords_to_global(node_feats[next_lane][:feat_len,:2], agent_translation, agent_rotation)
                             ax2.scatter(global_node_coords[:, 0],global_node_coords[:, 1], s=40, color='r', alpha=0.8) 
-                            data['inputs']['map_representation']['lane_node_masks'][next_lane,:,:] += np.ones(data['inputs']['map_representation']['lane_node_masks'][0,:,:].shape )
+                            data['inputs']['map_representation']['lane_node_masks'][next_lane,:,:] = np.ones_like(data['inputs']['map_representation']['lane_node_masks'][0,:,:]) 
+                            data['inputs']['agent_node_masks']['vehicles'][next_lane] = np.ones_like(data['inputs']['agent_node_masks']['vehicles'][0]) 
+                            data['inputs']['map_representation']['succ_adj_matrix'][:,next_lane] = np.zeros_like(data['inputs']['map_representation']['succ_adj_matrix'][:,0])
+                            data['inputs']['map_representation']['succ_adj_matrix'][next_lane] = np.zeros_like(data['inputs']['map_representation']['succ_adj_matrix'][next_lane])
+                            data['inputs']['map_representation']['prox_adj_matrix'][:,next_lane] = np.zeros_like(data['inputs']['map_representation']['prox_adj_matrix'][:,next_lane])
+                            data['inputs']['map_representation']['prox_adj_matrix'][next_lane] = np.zeros_like(data['inputs']['map_representation']['prox_adj_matrix'][next_lane]) 
+                            mask_out_lanes.append(next_lane)
+                            data['inputs']['map_representation']['mask_out_lanes'] = mask_out_lanes
 
             # Predict             
             if 'scout' in self.encoder_type:
@@ -513,8 +532,7 @@ class Visualizer:
                     if 'scout' in self.encoder_type and  n==0:
                         # Remove vehicles that are masked out
                         node_v_feats = data['inputs']['surrounding_agent_representation']['vehicles'][0][data['inputs']['surrounding_agent_representation']['vehicle_masks'][0,:,:,0].sum(-1) < 5]
-                        # Remove lanes that are masked out
-                        lane_feats = data['inputs']['map_representation']['lane_node_feats'][0][data['inputs']['map_representation']['lane_node_masks'][0,:,:,0].sum(-1) < 20]
+                        lane_feats = data['inputs']['map_representation']['lane_node_feats'][0]
                         self.visualize_graph(fig3,ax3,lane_feats.detach().cpu().numpy(), data['inputs']['map_representation']['s_next'][0].detach().cpu().numpy(), 
                             data['inputs']['map_representation']['edge_type'][0].detach().cpu().numpy(), data['ground_truth']['evf_gt'][0].detach().cpu().numpy(), 
                             data['inputs']['node_seq_gt'][0].detach().cpu().numpy(), traj.detach().cpu().numpy(), predictions['pi'][0].detach().cpu().numpy(), 

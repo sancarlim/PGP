@@ -125,7 +125,9 @@ class Collate_heterograph(object):
             # elements in batch which have no vehicles
             #no_vehicles = np.sum(veh_mask[:,:,0], axis=-1) == veh_mask.shape[-1] # True where no vehicle [B,84].
             mask_out_lanes = []
-            if self.lane_mask_prob > 0.:
+            if 'mask_out_lanes' in element['inputs']['map_representation']:
+                mask_out_lanes = element['inputs']['map_representation']['mask_out_lanes']
+            elif self.lane_mask_prob > 0.:
                 ###### Mask out lane_node_masks by lane p% of the time - 1 means mask out
                 mask_out = np.tile(np.expand_dims((np.random.random((lane_node_masks.shape[0])) < self.lane_mask_prob), [-1,-2]), [ 1,lane_node_masks.shape[-2],lane_node_masks.shape[-1]]) 
                 lane_node_masks =  lane_node_masks.astype(int) | mask_out.astype(int)
@@ -136,6 +138,7 @@ class Collate_heterograph(object):
                 element['inputs']['map_representation']['succ_adj_matrix'] = element['inputs']['map_representation']['succ_adj_matrix'] * (1-lane_node_masks[:,0,0])
                 element['inputs']['map_representation']['prox_adj_matrix'] = element['inputs']['map_representation']['prox_adj_matrix'] * (1-lane_node_masks[:,0,0])
                 element['inputs']['agent_node_masks']['vehicles'] = element['inputs']['agent_node_masks']['vehicles'].astype(int) | np.expand_dims((lane_node_masks[:,0,0]), -1).astype(int)
+            
             if self.mask_frames > 0.0: 
                 target_adj_matrix = element['inputs']['surrounding_agent_representation']['adj_matrix'][0,1:veh_mask.shape[0]+1] 
                 target_adj_matrix = np.tile(np.expand_dims(target_adj_matrix,-1), [1,veh_mask.shape[-2]]) 
@@ -173,6 +176,11 @@ class Collate_heterograph(object):
             lane_veh_adj_matrix = element['inputs']['agent_node_masks']['vehicles'].transpose(1,0) 
             # Remove masked lanes
             lane_veh_adj_matrix = np.delete(lane_veh_adj_matrix, mask_out_lanes, 1)
+            # To keep the indexing consistent, we set to 0 the edge type of masked out lanes, i.e. no edge.
+            if len(mask_out_lanes) > 0:
+                for lane in mask_out_lanes:
+                    element['inputs']['map_representation']['edge_type'] = np.where( element['inputs']['map_representation']['s_next'] == lane, 0, element['inputs']['map_representation']['edge_type'])
+            element['inputs']['map_representation']['s_next'][mask_out_lanes] = 0
             # Update with new masked out vehicles 
             lane_veh_adj_matrix = lane_veh_adj_matrix[v_nodes_mask] #num_nbr_vehicles x 164
             # create a mask for the lanes that are not empty
