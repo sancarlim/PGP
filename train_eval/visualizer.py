@@ -159,7 +159,7 @@ class Visualizer:
         return idcs
 
     def visualize_graph(self, fig, ax, node_feats, s_next, edge_type, evf_gt, node_seq, fut_xy, pi, cmap_cool, 
-                        vehicles_feats,focal_agent, graph, att):
+                        vehicles_feats, graph, att):
         """
         Function to visualize lane graph.
         """ 
@@ -211,8 +211,7 @@ class Visualizer:
             else:
                 lane_pos.append([0, 0])
         
-        #Plot surrounding vehicles nodes
-        vehicles_feats=np.concatenate((focal_agent, vehicles_feats))
+        #Plot surrounding vehicles nodes 
         for node_id, node_feat in enumerate(vehicles_feats): 
             if node_feat.sum() == 0:
                 break 
@@ -533,11 +532,32 @@ class Visualizer:
                         # Remove vehicles that are masked out
                         node_v_feats = data['inputs']['surrounding_agent_representation']['vehicles'][0][data['inputs']['surrounding_agent_representation']['vehicle_masks'][0,:,:,0].sum(-1) < 5]
                         lane_feats = data['inputs']['map_representation']['lane_node_feats'][0]
-                        self.visualize_graph(fig3,ax3,lane_feats.detach().cpu().numpy(), data['inputs']['map_representation']['s_next'][0].detach().cpu().numpy(), 
+
+                        # Retrieve object-level edge attention -> att[3:]. att[:3] is type-level attention.
+                        att = [att.detach().cpu().numpy()  for attention in predictions['att'] for att in attention.values()]
+                        graph = data['inputs']['lanes_graphs'].cpu()
+                        vehicles_feats=np.concatenate((data['inputs']['target_agent_representation'][:,-1:,:2].detach().cpu().numpy(), node_v_feats[:,-1:,:2].detach().cpu().numpy()))
+                        for i, vehicle in enumerate(vehicles_feats):
+                            vehicles_feats[i] = convert_local_coords_to_global(vehicle, agent_translation, agent_rotation)
+                        v2v_attn = att[-1]
+                        v2l_attn = att[-2]  
+                        # Plot interactions with other agents for the focal vehicle
+                        for idx, v in enumerate(graph['v_interact_v'].edges()[0]):
+                            # if v > graph['v_interact_v'].edges()[1][idx]:
+                            if graph['v_interact_v'].edges()[0][idx] == 0:
+                                color = 'w'
+                                # Compute attention taking into account object-level and type-level attention
+                                attn = v2v_attn[idx]*att[2][-1][graph['v_interact_v'].edges()[1][idx]]*2.5 
+                                w = attn
+                                alpha = max(1., v2v_attn[idx]) 
+                                ax2.arrow(vehicles_feats[v][-1,0], vehicles_feats[v][-1,1], vehicles_feats[graph['v_interact_v'].edges()[1][idx]][-1,0]-vehicles_feats[v][-1,0], 
+                                    vehicles_feats[graph['v_interact_v'].edges()[1][idx]][-1,1]-vehicles_feats[v][-1,1], color=color, head_width=0.1, 
+                                    length_includes_head=True,  width=w, alpha=alpha) 
+
+                        """self.visualize_graph(fig3,ax3,lane_feats.detach().cpu().numpy(), data['inputs']['map_representation']['s_next'][0].detach().cpu().numpy(), 
                             data['inputs']['map_representation']['edge_type'][0].detach().cpu().numpy(), data['ground_truth']['evf_gt'][0].detach().cpu().numpy(), 
                             data['inputs']['node_seq_gt'][0].detach().cpu().numpy(), traj.detach().cpu().numpy(), predictions['pi'][0].detach().cpu().numpy(), 
-                            cmap_cool, node_v_feats.detach().cpu().numpy(), data['inputs']['target_agent_representation'].detach().cpu().numpy(), 
-                            data['inputs']['lanes_graphs'].cpu(), [att.detach().cpu().numpy()  for attention in predictions['att'] for att in attention.values()])  
+                            cmap_cool, vehicles_feats, graph, att)"""  
             
             if self.legend:
                 legend=ax2.legend(frameon=True, loc='upper right', facecolor='lightsteelblue', edgecolor='black', fontsize=9)
