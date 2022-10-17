@@ -74,8 +74,8 @@ class Visualizer:
         self.mask_lanes = mask_lanes
         self.name = name
         self.legend = False
-        self.patch_margin = 20
-        self.min_diff_patch = 20
+        self.patch_margin = 25
+        self.min_diff_patch = 25
 
         # Initialize model
         self.model = initialize_prediction_model(cfg['encoder_type'], cfg['aggregator_type'], cfg['decoder_type'],
@@ -122,20 +122,19 @@ class Visualizer:
         if not os.path.isdir(os.path.join(output_dir, 'results', 'gifs')):
             os.mkdir(os.path.join(output_dir, 'results', 'gifs'))
         start = time.time()
-        for n, indices in enumerate(index_list[self.example:self.example+1]):
+        for n, indices in enumerate(index_list[self.example:]):
             imgs, fancy_img, graph_img, scene = self.generate_nuscenes_gif(indices)
-            filename = os.path.join(output_dir, 'example_' + str(self.example) + self.name + scene + '.gif')
+            filename = os.path.join(output_dir, 'example_' + str(self.example+n) + self.name + scene + '.gif')
             imageio.mimsave(filename, fancy_img, format='GIF', fps=2)  
-            for i,img in enumerate(fancy_img):
-                filename = os.path.join(output_dir, 'example' + str(self.example) + self.name + scene  + '_' + str(i) +'.png')
-                plt.imsave(filename, img) 
-                filename = os.path.join(output_dir, 'results', 'gifs', 'example' + str(self.example)+ scene + '_graph_' + self.name + '_' + str(i) + '.png')
-                plt.imsave(filename, img, dpi=300)  
+            """for i,img in enumerate(fancy_img):
+                filename = os.path.join(output_dir, 'example' + str(self.example+n) + self.name + scene  + '_' + str(i) +'.png')
+                plt.imsave(filename, img) """
+            filename = os.path.join(output_dir, 'results', 'gifs', 'example' + str(self.example+n)+ scene + '_graph_' + self.name + '.gif')
             imageio.mimsave(filename, graph_img, format='GIF', fps=2)  
             """filename = os.path.join(output_dir, 'results', 'gifs', 'example' + str(n) + scene + '.gif')
             imageio.mimsave(filename, imgs, format='GIF', fps=2)
             """ 
-            print('Saved gif for example ' + str(self.example) + ' in ' + str(time.time() - start) + ' seconds')
+            print('Saved gif for example ' + str(self.example+n) + ' in ' + str(time.time() - start) + ' seconds')
 
     def get_vis_idcs_nuscenes(self):
         """
@@ -149,7 +148,8 @@ class Visualizer:
             if i_t not in unique_instance_tokens:
                 unique_instance_tokens.append(i_t)
 
-        instance_tokens_to_visualize = [54, 98, 91, 5, 114, 144, 291, 204, 312, 187, 36, 267, 146]
+        instance_tokens_to_visualize = [54, 98, 91, 5, 114, 144, 291, 204, 312, 187, 36, 267, 146,
+                                        56,82,89,93,109,111,113,127,166,104]
 
         idcs = []
         for i_t_id in instance_tokens_to_visualize:
@@ -271,7 +271,7 @@ class Visualizer:
         imgs_fancy = []
         graph_img = [] 
         vehicle_masked_t = []
-        for idx in idcs[:1]: 
+        for idx in idcs[:]: 
             # Load data
             data = self.ds[idx]
             i_t = data['inputs']['instance_token']
@@ -311,11 +311,13 @@ class Visualizer:
                 my_patch = (min_patch[0]+25, min_patch[1]-30, max_patch[0]+25, max_patch[1]-30)
             elif self.example == 4:
                 my_patch = (min_patch[0]+25, min_patch[1]-30, max_patch[0]+25, max_patch[1]-30)
-            elif self.example == 3:
+            elif self.example == 3:  
                 my_patch = (min_patch[0]-10, min_patch[1]+20, max_patch[0]-10 , max_patch[1]+20)
+            elif self.example == 13:  
+                my_patch = (min_patch[0]-20, min_patch[1]+20, max_patch[0]-20 , max_patch[1]+20)
             elif self.example == 9:
                 my_patch = (min_patch[0]-20, min_patch[1]-25, max_patch[0]-20 , max_patch[1]-25)
-            elif self.example == 2 or self.example == 1:
+            elif self.example == 2 or self.example == 1 or self.example == 15:
                 my_patch = (min_patch[0]-20, min_patch[1]+10, max_patch[0]-20 , max_patch[1]+10)
 
             fig2, ax2 = nusc_map.render_map_patch(my_patch, layers, figsize=(10, 10), alpha=0.3,
@@ -379,6 +381,7 @@ class Visualizer:
                     future[ann['instance_token']] = future[ann['instance_token']] - (history[-1]-history[0])*1.3
                     feature = data['inputs']['surrounding_agent_representation']['vehicles'][4,:,:]
                     feature[:,:2] = convert_global_coords_to_local(history, annotations[36]['translation'], annotations[36]['rotation'])  
+                    data['inputs']['surrounding_agent_representation']['vehicles'][4,:,:] = feature
                     data['inputs']['surrounding_agent_representation']['adj_matrix'][0,4+1] = 1
                     data['inputs']['surrounding_agent_representation']['adj_matrix'][4+1,0] = 1    
                     data['inputs']['agent_node_masks']['vehicles'][:,4] = data['inputs']['agent_node_masks']['vehicles'][:,1]                
@@ -531,16 +534,25 @@ class Visualizer:
                     if 'scout' in self.encoder_type and  n==0:
                         # Remove vehicles that are masked out
                         node_v_feats = data['inputs']['surrounding_agent_representation']['vehicles'][0][data['inputs']['surrounding_agent_representation']['vehicle_masks'][0,:,:,0].sum(-1) < 5]
+                        node_p_feats = data['inputs']['surrounding_agent_representation']['pedestrians'][0][data['inputs']['surrounding_agent_representation']['pedestrian_masks'][0,:,:,0].sum(-1) < 5]
                         lane_feats = data['inputs']['map_representation']['lane_node_feats'][0]
 
                         # Retrieve object-level edge attention -> att[3:]. att[:3] is type-level attention.
                         att = [att.detach().cpu().numpy()  for attention in predictions['att'] for att in attention.values()]
                         graph = data['inputs']['lanes_graphs'].cpu()
                         vehicles_feats=np.concatenate((data['inputs']['target_agent_representation'][:,-1:,:2].detach().cpu().numpy(), node_v_feats[:,-1:,:2].detach().cpu().numpy()))
+                        pedestrians_feats = node_p_feats[:,-1:,:2].detach().cpu().numpy()
+                        self.visualize_graph(fig3,ax3,lane_feats.detach().cpu().numpy(), data['inputs']['map_representation']['s_next'][0].detach().cpu().numpy(), 
+                            data['inputs']['map_representation']['edge_type'][0].detach().cpu().numpy(), data['ground_truth']['evf_gt'][0].detach().cpu().numpy(), 
+                            data['inputs']['node_seq_gt'][0].detach().cpu().numpy(), traj.detach().cpu().numpy(), predictions['pi'][0].detach().cpu().numpy(), 
+                            cmap_cool, vehicles_feats, graph, att)
                         for i, vehicle in enumerate(vehicles_feats):
                             vehicles_feats[i] = convert_local_coords_to_global(vehicle, agent_translation, agent_rotation)
+                        for i, pedestrian in enumerate(pedestrians_feats):
+                            pedestrians_feats[i] = convert_local_coords_to_global(pedestrian, agent_translation, agent_rotation)
                         v2v_attn = att[-1]
                         v2l_attn = att[-2]  
+                        p2v_attn = att[-3] 
                         # Plot interactions with other agents for the focal vehicle
                         for idx, v in enumerate(graph['v_interact_v'].edges()[0]):
                             # if v > graph['v_interact_v'].edges()[1][idx]:
@@ -549,15 +561,24 @@ class Visualizer:
                                 # Compute attention taking into account object-level and type-level attention
                                 attn = v2v_attn[idx]*att[2][-1][graph['v_interact_v'].edges()[1][idx]]*2.5 
                                 w = attn
-                                alpha = max(1., v2v_attn[idx]) 
+                                alpha = 1
                                 ax2.arrow(vehicles_feats[v][-1,0], vehicles_feats[v][-1,1], vehicles_feats[graph['v_interact_v'].edges()[1][idx]][-1,0]-vehicles_feats[v][-1,0], 
                                     vehicles_feats[graph['v_interact_v'].edges()[1][idx]][-1,1]-vehicles_feats[v][-1,1], color=color, head_width=0.1, 
                                     length_includes_head=True,  width=w, alpha=alpha) 
+                        # Plot interactions with pedestrians for the focal vehicle
+                        for idx, p in enumerate(graph['p_interact_v'].edges()[0]):
+                            # Visualize only those pedestrians who interact with focal agent
+                            if graph['p_interact_v'].edges()[1][idx] == 0:
+                                color = 'r'
+                                # Compute attention taking into account object-level and type-level attention
+                                attn = p2v_attn[idx]   #att[2][-2][graph['p_interact_v'].edges()[0][idx]] 
+                                w = attn
+                                alpha = 1
+                                ax2.arrow(vehicles_feats[0][-1,0], vehicles_feats[0][-1,1], pedestrians_feats[graph['p_interact_v'].edges()[0][idx]][-1,0]-vehicles_feats[0][-1,0], 
+                                    pedestrians_feats[graph['p_interact_v'].edges()[0][idx]][-1,1]-vehicles_feats[0][-1,1], color=color, head_width=0.1, 
+                                    length_includes_head=True,  width=w, alpha=alpha)
 
-                        """self.visualize_graph(fig3,ax3,lane_feats.detach().cpu().numpy(), data['inputs']['map_representation']['s_next'][0].detach().cpu().numpy(), 
-                            data['inputs']['map_representation']['edge_type'][0].detach().cpu().numpy(), data['ground_truth']['evf_gt'][0].detach().cpu().numpy(), 
-                            data['inputs']['node_seq_gt'][0].detach().cpu().numpy(), traj.detach().cpu().numpy(), predictions['pi'][0].detach().cpu().numpy(), 
-                            cmap_cool, vehicles_feats, graph, att)"""  
+                        
             
             if self.legend:
                 legend=ax2.legend(frameon=True, loc='upper right', facecolor='lightsteelblue', edgecolor='black', fontsize=9)
