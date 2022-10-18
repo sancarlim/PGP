@@ -3,6 +3,8 @@
 This repository contains code for ["Towards Explainable Multi-modal Motion
 Prediction using Graph Representations"]() by Sandra Carrasco, Sylwia Majchrowska, ..., presented at .. 2022.  
 
+![](https://github.com/sancarlim/PGP/blob/main/assets/readme.gif)
+
 ```bibtex
 citation
 ```
