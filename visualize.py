@@ -13,7 +13,7 @@ parser.add_argument("-w", "--checkpoint", help="Path to pre-trained or intermedi
 parser.add_argument("--num_modes", help="Number of modes to visualize", type=int, default=10)
 parser.add_argument("--example", help="Example to visualize", type=int, default=1)
 parser.add_argument("--tf", help="Prediction horizon in seconds", type=int, default=6)
-parser.add_argument("--show_predictions", help="Show predictions", action="store_true")
+parser.add_argument("--show_predictions", help="Show predictions", action="store_true", default=True)
 parser.add_argument("--counterfactual", help="Include counterfactual", action="store_true")
 parser.add_argument("--mask_lane", help="Mask gt lanes", action="store_true")
 parser.add_argument("--name", type=str, default='')

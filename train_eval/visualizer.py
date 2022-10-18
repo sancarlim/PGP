@@ -123,17 +123,15 @@ class Visualizer:
             os.mkdir(os.path.join(output_dir, 'results', 'gifs'))
         start = time.time()
         for n, indices in enumerate(index_list[self.example:]):
-            imgs, fancy_img, graph_img, scene = self.generate_nuscenes_gif(indices)
+            fancy_img, graph_img, scene = self.generate_nuscenes_gif(indices)
             filename = os.path.join(output_dir, 'example_' + str(self.example+n) + self.name + scene + '.gif')
             imageio.mimsave(filename, fancy_img, format='GIF', fps=2)  
-            """for i,img in enumerate(fancy_img):
+            for i,img in enumerate(fancy_img):
                 filename = os.path.join(output_dir, 'example' + str(self.example+n) + self.name + scene  + '_' + str(i) +'.png')
-                plt.imsave(filename, img) """
+                plt.imsave(filename, img)  
             filename = os.path.join(output_dir, 'results', 'gifs', 'example' + str(self.example+n)+ scene + '_graph_' + self.name + '.gif')
             imageio.mimsave(filename, graph_img, format='GIF', fps=2)  
-            """filename = os.path.join(output_dir, 'results', 'gifs', 'example' + str(n) + scene + '.gif')
-            imageio.mimsave(filename, imgs, format='GIF', fps=2)
-            """ 
+            
             print('Saved gif for example ' + str(self.example+n) + ' in ' + str(time.time() - start) + ' seconds')
 
     def get_vis_idcs_nuscenes(self):
@@ -267,7 +265,6 @@ class Visualizer:
         location = log['location']
         nusc_map = NuScenesMap(dataroot=self.dataroot, map_name=location)
         
-        imgs = []
         imgs_fancy = []
         graph_img = [] 
         vehicle_masked_t = []
@@ -279,21 +276,11 @@ class Visualizer:
             annotations = self.ds.helper.get_annotations_for_sample(s_t)
             past = self.ds.helper.get_past_for_sample(s_t,2,False)
             future = self.ds.helper.get_future_for_sample(s_t,self.tf/2,False) 
-            
-            # map_poses, fig2, ax2 = nusc_map.render_egoposes_on_fancy_map(self.ns, scene['token'], )
 
             sample_record = self.ns.get('sample', s_t)
             sample_data_record = self.ns.get('sample_data', sample_record['data']['LIDAR_TOP'])
             pose_record = self.ns.get('ego_pose', sample_data_record['ego_pose_token'])
             ego_poses=np.array(pose_record['translation'][:2])
-            # Retrieve ego history 
-
-            """ for history_t in reversed(range(4)):
-                prev_sample_data = self.ns.get('sample_data', sample_data_record['prev'])
-                history_name = 'history_' + str(history_t)  
-                pose_record[history_name] = self.ns.get('ego_pose', prev_sample_data['ego_pose_token'])['translation']
-                pose_record[history_name].append(self.ns.get('ego_pose', prev_sample_data['ego_pose_token'])['rotation'])  
-            """
             
             # Render the map patch with the current ego poses. 
             if self.example == 4 or self.example==9:
@@ -307,6 +294,8 @@ class Visualizer:
                 min_patch = center_patch - diff_patch / 2
                 max_patch = center_patch + diff_patch / 2
             my_patch = (min_patch[0], min_patch[1], max_patch[0], max_patch[1])
+
+            # For article visualizations
             if self.example == 5:
                 my_patch = (min_patch[0]+25, min_patch[1]-30, max_patch[0]+25, max_patch[1]-30)
             elif self.example == 4:
@@ -469,10 +458,7 @@ class Visualizer:
                 data['inputs']['surrounding_agent_representation']['adj_matrix'][0,num_v+1] = 1
                 data['inputs']['surrounding_agent_representation']['adj_matrix'][num_v+1,0] = 1
                 data['inputs']['surrounding_agent_representation']['adj_matrix'][num_v+1,num_v+1] = 1
-            """# Get raster map
-            hd_map = self.raster_maps.make_input_representation(i_t, s_t, pose_record)
-            r, g, b = hd_map[:, :, 0] / 255, hd_map[:, :, 1] / 255, hd_map[:, :, 2] / 255
-            hd_map_gray = 0.2989 * r + 0.5870 * g + 0.1140 * b """
+                
 
             # Plot visited lanes and mask 
             if self.mask_lanes: 
@@ -610,24 +596,6 @@ class Visualizer:
                 legend._set_loc(legend._loc)
                 legend.set_title(legend.get_title().get_text())
             
-            
-            """traj_gt = data['ground_truth']['traj'][0]
-            ax[2].plot(traj_gt[:, 0].detach().cpu().numpy(), traj_gt[:, 1].detach().cpu().numpy(), lw=4, color='g')
-            ax[2].scatter(traj_gt[-1, 0].detach().cpu().numpy(), traj_gt[-1, 1].detach().cpu().numpy(), 60, color='g')
-
-            ax[0].axis('off')
-            ax[1].axis('off')
-            ax[2].axis('off')
-            fig.tight_layout(pad=0)
-            ax[0].margins(0)
-            ax[1].margins(0)
-            ax[2].margins(0)
-
-            fig.canvas.draw()
-            image_from_plot = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
-            image_from_plot = image_from_plot.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-            imgs.append(image_from_plot)
-            plt.close(fig) """
 
             fig2.canvas.draw()
             image_from_plot = np.frombuffer(fig2.canvas.tostring_rgb(), dtype=np.uint8) 
@@ -642,4 +610,4 @@ class Visualizer:
             graph_img.append(image_from_plot)
             plt.close(fig3) 
 
-        return imgs, imgs_fancy,graph_img, scene_name
+        return imgs_fancy,graph_img, scene_name
