@@ -12,8 +12,7 @@ parser.add_argument("-o", "--output_dir", help="Directory to save results", requ
 parser.add_argument("-w", "--checkpoint", help="Path to pre-trained or intermediate checkpoint", required=True)
 parser.add_argument("--num_modes", help="Number of modes to visualize", type=int, default=10)
 parser.add_argument("--example", help="Example to visualize", type=int, default=1)
-parser.add_argument("--tf", help="Prediction horizon in seconds", type=int, default=6)
-parser.add_argument("--show_predictions", help="Show predictions", action="store_true")
+parser.add_argument("--tf", help="Prediction horizon in seconds", type=int, default=6) 
 args = parser.parse_args()
 
 
@@ -30,5 +29,5 @@ with open(args.config, 'r') as yaml_file:
 
 
 # Visualize
-vis = Visualizer(cfg, args.data_root, args.data_dir, args.checkpoint, args.example,args.show_predictions, args.tf, args.num_modes)
+vis = Visualizer(cfg, args.data_root, args.data_dir, args.checkpoint, args.example, args.tf, args.num_modes)
 vis.visualize(output_dir=args.output_dir, dataset_type=cfg['dataset'])
