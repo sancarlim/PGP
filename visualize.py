@@ -12,6 +12,7 @@ parser.add_argument("-o", "--output_dir", help="Directory to save results", requ
 parser.add_argument("-w", "--checkpoint", help="Path to pre-trained or intermediate checkpoint", required=True)
 parser.add_argument("--num_modes", help="Number of modes to visualize", type=int, default=10)
 parser.add_argument("--example", help="Example to visualize", type=int, default=1)
+parser.add_argument("--frames", help="Frames to visualize", type=str, default=None)
 parser.add_argument("--tf", help="Prediction horizon in seconds", type=int, default=6)
 parser.add_argument("--show_predictions", help="Show predictions", action="store_true", default=True)
 parser.add_argument("--counterfactual", help="Include counterfactual", action="store_true")
@@ -19,6 +20,9 @@ parser.add_argument("--mask_lane", help="Mask gt lanes", action="store_true")
 parser.add_argument("--name", type=str, default='')
 args = parser.parse_args()
 
+# Convert comma-separated string to list of ints
+if args.frames is not None:
+    args.frames = [int(x) for x in args.frames.split(',')]
 
 # Make directories
 if not os.path.isdir(args.output_dir):
@@ -33,6 +37,6 @@ with open(args.config, 'r') as yaml_file:
 
 
 # Visualize
-vis = Visualizer(cfg, args.data_root, args.data_dir, args.checkpoint, args.example,args.show_predictions,
+vis = Visualizer(cfg, args.data_root, args.data_dir, args.checkpoint, args.example, args.frames, args.show_predictions,
                  args.tf, args.num_modes, args.counterfactual, args.mask_lane, args.name)
 vis.visualize(output_dir=args.output_dir, dataset_type=cfg['dataset'])
