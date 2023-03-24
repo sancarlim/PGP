@@ -24,6 +24,7 @@ from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 import math
 import time
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from matplotlib.colors import LinearSegmentedColormap
 
 # Initialize device:
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -32,7 +33,7 @@ agent = plt.imread('/media/14TBDISK/sandra/DBU_Graph/NuScenes/icons/Car TOP_VIEW
 cars = plt.imread('/media/14TBDISK/sandra/DBU_Graph/NuScenes/icons/Car TOP_VIEW 80CBE5.png') 
 
 layers = ['drivable_area',  
-          #'lane', 
+          'lane', 
           #'road_segment', 
           #'road_block', 
           'ped_crossing',
@@ -322,7 +323,7 @@ class Visualizer:
                                         render_egoposes_range=False,
                                         render_legend=self.legend, bitmap=None) 
 
-            cmap_cool = plt.get_cmap('autumn')
+            cmap_cool = LinearSegmentedColormap.from_list("", ["navy","magenta"])    #   plt.get_cmap('winter')
             sm_cool = plt.cm.ScalarMappable(cmap=cmap_cool, norm=plt.Normalize(vmin=0, vmax=1)) 
             #divider = make_axes_locatable(ax2)
             #cax = divider.append_axes("right", size="2%", pad=0.7)
@@ -585,7 +586,7 @@ class Visualizer:
                 idx = labels.index("lane")
                 handles.pop(idx)
                 labels.pop(idx)
-                idx=labels.index("road_block")
+                idx=labels.index("drivable_area")
                 handles.pop(idx)
                 labels.pop(idx)
                 labels.append("2s past trajectory")
